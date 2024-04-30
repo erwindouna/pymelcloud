@@ -209,7 +209,7 @@ class Client:
                 "DeviceId": device_id,
                 "UseCurrency": False,
                 "FromDate": f"{from_str}T00:00:00",
-                "ToDate": f"{to_str}T00:00:00"
+                "ToDate": f"{to_str}T00:00:00",
             },
             raise_for_status=True,
         ) as resp:

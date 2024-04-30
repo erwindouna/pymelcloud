@@ -2,12 +2,20 @@
 from typing import Any, Dict, Optional
 
 import pytest
+
 from pymelcloud.ata_device import AtaDevice
+
 from .util import build_device
 
 
-def _build_device(device_conf_name: str, device_state_name: str, energy_report: Optional[Dict[Any, Any]]=None) -> AtaDevice:
-    device_conf, client = build_device(device_conf_name, device_state_name, energy_report)
+def _build_device(
+    device_conf_name: str,
+    device_state_name: str,
+    energy_report: Optional[Dict[Any, Any]] = None,
+) -> AtaDevice:
+    device_conf, client = build_device(
+        device_conf_name, device_state_name, energy_report
+    )
     return AtaDevice(device_conf, client)
 
 
@@ -40,6 +48,7 @@ async def test_round_temperature():
     assert device.round_temperature(25.49999) == 25.0
     assert device.round_temperature(25.5) == 26.0
 
+
 @pytest.mark.asyncio
 async def test_energy_report_none_if_no_report():
     device = _build_device("ata_listdevice.json", "ata_get.json")
@@ -48,10 +57,12 @@ async def test_energy_report_none_if_no_report():
 
     assert device.daily_energy_consumed is None
 
+
 def test_energy_report_before_update():
     device = _build_device("ata_listdevice.json", "ata_get.json")
 
     assert device.daily_energy_consumed is None
+
 
 @pytest.mark.asyncio
 async def test_round_temperature():

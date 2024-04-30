@@ -209,7 +209,7 @@ class Zone:
         """Set target flow temperature for the currently active operation mode."""
         op_mode = self.operation_mode
         if op_mode is None:
-            return None
+            return
 
         if op_mode in [
             ZONE_OPERATION_MODE_COOL_THERMOSTAT,
