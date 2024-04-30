@@ -1,192 +1,161 @@
-# pymelcloud
+# Python: Asynchronous Python client for controlling Melcloud
 
-[![PyPI version](https://badge.fury.io/py/pymelcloud.svg)](https://badge.fury.io/py/pymelcloud)
+[![GitHub Release][releases-shield]][releases]
+[![Python Versions][python-versions-shield]][pypi]
+![Project Stage][project-stage-shield]
+![Project Maintenance][maintenance-shield]
+[![License][license-shield]](LICENSE.md)
 
-This is a package for interacting with MELCloud and Mitsubishi Electric
-devices. It's still a little rough around the edges and the documentation
-is non-existent.
-
-The goals for this package are:
-
-* To control and automate devices, not to configure them.
-* Handle device capabilities behind the scenes.
-* Make the different device types behave in predictable way.
-
-## Notes on usage
-
-There are built-in rate limits and debouncing for most of the methods
-with the exception of the `Device` `update` method.
-
-* Initialize devices for each account only once during application
-runtime.
-* Make sure the `update` calls for each `Device` are rate limited. A 60
-second update interval is a good starting point. Going much faster will
-exceed the expected load for MELCloud and can potentially cause
-availability issues.
-* Make absolutely sure the `update` calls are rate limited.
-
-## Supported devices
-
-* Air-to-air heat pumps (DeviceType=0)
-* Air-to-water heat pumps (DeviceType=1)
-* Energy Recovery Ventilators (DeviceType=3) 
-
-## Read
-
-Reads access only locally cached state. Call `device.update()` to
-fetch the latest state.
-
-Available properties:
-
-* `name`
-* `mac`
-* `serial`
-* `units` - model info of related units.
-* `temp_unit`
-* `last_seen`
-* `power`
-* `daily_energy_consumed`
-* `wifi_signal`
+[![Build Status][build-shield]][build]
+[![Code Coverage][codecov-shield]][codecov]
+[![Quality Gate Status][sonarcloud-shield]][sonarcloud]
+[![Open in Dev Containers][devcontainer-shield]][devcontainer]
 
 
-Other properties are available through `_` prefixed state objects if
-one has the time to go through the source.
+Asynchronous Python client to control Melcloud devices.
 
-### Air-to-air heat pump properties
-* `room_temperature`
-* `target_temperature`
-* `target_temperature_step`
-* `target_temperature_min`
-* `target_temperature_max`
-* `operation_mode`
-* available `operation_modes`
-* `fan_speed`
-* available `fan_speeds`
-* `vane_horizontal`
-* available `vane_horizontal_positions`
-* `vane_vertical`
-* available `vane_vertical_positions`
-* `total_energy_consumed` in kWh. See [notes below.](#energy-consumption)
+## About
 
-### Air-to-water heat pump properties
-* `tank_temperature`
-* `target_tank_temperature`
-* `tank_temperature_min`
-* `tank_temperature_max`
-* `outside_temperature`
-* `zones`
-  * `name`
-  * `status`
-  * `room_temperature`
-  * `target_temperature`
-* `status`
-* `operation_mode`
-* available `operation_modes`
+This package allows you to control Melcloud devices from within Python.
+The main usage is at the moment to act as a library within Home Assistant.
 
-### Energy recovery ventilator properties
-* `room_temperature`
-* `outdoor_temperature`
-* available `fan_speeds`
-* `fan_speed`
-* `actual_supply_fan_speed`
-* `actual_exhaust_fan_speed`
-* available `ventilation_modes`
-* `ventilation_mode`
-* `actual_ventilation_mode`
-* `total_energy_consumed`
-* `wifi_signal`
-* `presets`
-* `error_code`
-* `core_maintenance_required`
-* `filter_maintenance_required`
-* `night_purge_mode`
-* `room_co2_level`
+## Installation
 
-### Energy consumption
+```bash
+pip install python-melcloud
+```
 
-The energy consumption reading is a little strange. The API returns a
-value of 1.8e6 for my unit. Judging by the scale the unit is either kJ
-or Wh. However, neither of them quite fits.
-
-* Total reading in kJ matches better what I would expect based on the
-energy reports in MELCloud.
-* In Wh the reading is 3-5 times greater than what I would expect, but
-the reading is increasing at a rate that seems to match energy reports
-in MELCloud.
-
-Here are couple of readings with monthly reported usage as reference:
-
-* 2020-01-04T23:42:00+02:00 - 1820400, 28.5 kWh
-* 2020-01-05T09:44:00+02:00 - 1821300, 29.4 kWh
-* 2020-01-05T10:49:00+02:00 - 1821500, 29.6 kWh
-
-I'd say it's pretty clear that it is Wh and the total reading is not
-reflective of unit lifetime energy consumption. `total_energy_consumed`
-converts Wh to kWh.
-
-## Write
-
-Writes are applied after a debounce and update the local state once
-completed. The physical device does not register the changes
-immediately due to the 60 second polling interval.
-
-Writable properties are:
-
-* `power`
-
-### Air-to-air heat pump write
-
-* `target_temperature`
-* `operation_mode`
-* `fan_speed`
-* `vane_horizontal`
-* `vane_vertical`
-
-There's weird behavior associated with the horizontal vane swing.
-Toggling it on will also toggle vertical swing on and the horizontal
-swing has to be disabled before vertical vanes can be adjusted to any
-other position. This behavior can be replicated using the MELCloud user
-inteface.
-
-### Air-to-water heat pump write
-
-* `target_tank_temperature`
-* `operation_mode`
-* `zone_1_target_temperature`
-* `zone_2_target_tempeature`
-
-Zone target temperatures can also be set via the `Zone` object
-returned by `zones` property on `AtwDevice`.
-
-### Energy recovery ventilator write
-
-* `ventilation_mode`
-* `fan_speed`
-
-## Example usage
+## Usage
 
 ```python
-import aiohttp
 import asyncio
-import pymelcloud
+
+from tado import Tado
 
 
-async def main():
+async def main() -> None:
+    """Show example on how to use aiohttp.ClientSession."""
+    async with Tado("username", "password") as tado:
+        await tado.get_devices()
 
-    async with aiohttp.ClientSession() as session:
-        # call the login method with the session
-        token = await pymelcloud.login("my@example.com", "mysecretpassword", session=session)
 
-        # lookup the device
-        devices = await pymelcloud.get_devices(token, session=session)
-        device = devices[pymelcloud.DEVICE_TYPE_ATW][0]
+if __name__ == "__main__":
+    asyncio.run(main())
 
-        # perform logic on the device
-        await device.update()
-
-        print(device.name)
-        await session.close()
-
-loop = asyncio.get_event_loop()
-loop.run_until_complete(main())
 ```
+
+## Changelog & Releases
+
+This repository keeps a change log using [GitHub's releases][releases]
+functionality. The format of the log is based on
+[Keep a Changelog][keepchangelog].
+
+Releases are based on [Semantic Versioning][semver], and use the format
+of `MAJOR.MINOR.PATCH`. In a nutshell, the version will be incremented
+based on the following:
+
+- `MAJOR`: Incompatible or major changes.
+- `MINOR`: Backwards-compatible new features and enhancements.
+- `PATCH`: Backwards-compatible bugfixes and package updates.
+
+## Contributing
+
+This is an active open-source project. We are always open to people who want to
+use the code or contribute to it.
+
+We've set up a separate document for our
+[contribution guidelines](.github/CONTRIBUTING.md).
+
+Thank you for being involved!
+
+## Setting up a development environment
+
+The easiest way to start, is by opening a CodeSpace here on GitHub, or by using
+the [Dev Container][devcontainer] feature of Visual Studio Code.
+
+[![Open in Dev Containers][devcontainer-shield]][devcontainer]
+
+This Python project is fully managed using the [Poetry][poetry] dependency manager. But also relies on the use of NodeJS for certain checks during development.
+
+You need at least:
+
+- Python 3.12+
+- [Poetry][poetry-install]
+- NodeJS 18+ (including NPM)
+
+To install all packages, including all development requirements:
+
+```bash
+npm install
+poetry install
+```
+
+As this repository uses the [pre-commit][pre-commit] framework, all changes
+are linted and tested with each commit. You can run all checks and tests
+manually, using the following command:
+
+```bash
+poetry run pre-commit run --all-files
+```
+
+To run just the Python tests:
+
+```bash
+poetry run pytest
+```
+
+## Authors & contributors
+
+The original setup of this repository is by [Erwin Douna][erwindouna].
+
+For a full list of all authors and contributors,
+check [the contributor's page][contributors].
+
+## License
+
+MIT License
+
+Copyright (c) 2024 Erwin Douna
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+[build-shield]: https://github.com/erwindouna/python-tado/actions/workflows/tests.yaml/badge.svg
+[build]: https://github.com/erwindouna/python-tado/actions/workflows/tests.yaml
+[codecov-shield]: https://codecov.io/gh/erwindouna/python-tado/branch/main/graph/badge.svg
+[codecov]: https://codecov.io/gh/erwindouna/python-tado
+[contributors]: https://github.com/erwindouna/python-tado/graphs/contributors
+[devcontainer-shield]: https://img.shields.io/static/v1?label=Dev%20Containers&message=Open&color=blue&logo=visualstudiocode
+[devcontainer]: https://vscode.dev/redirect?url=vscode://ms-vscode-remote.remote-containers/cloneInVolume?url=https://github.com/erwindouna/python-tado
+[erwindouna]: https://github.com/erwindouna
+[github-sponsors-shield]: https://erwindouna.dev/wp-content/uploads/2019/12/github_sponsor.png
+[github-sponsors]: https://github.com/sponsors/erwindouna
+[keepchangelog]: http://keepachangelog.com/en/1.0.0/
+[license-shield]: https://img.shields.io/github/license/erwindouna/python-tado.svg
+[maintenance-shield]: https://img.shields.io/maintenance/yes/2024.svg
+[poetry-install]: https://python-poetry.org/docs/#installation
+[poetry]: https://python-poetry.org
+[pre-commit]: https://pre-commit.com/
+[project-stage-shield]: https://img.shields.io/badge/project%20stage-production%20ready-brightgreen.svg
+[pypi]: https://pypi.org/project/python-tado-ha/
+[python-versions-shield]: https://img.shields.io/pypi/pyversions/tado
+[releases-shield]: https://img.shields.io/github/release/erwindouna/python-tado.svg
+[releases]: https://github.com/erwindouna/python-tado/releases
+[semver]: http://semver.org/spec/v2.0.0.html
+[sonarcloud-shield]: https://sonarcloud.io/api/project_badges/measure?project=erwindouna_python-tado&metric=alert_status
+[sonarcloud]: https://sonarcloud.io/summary/new_code?id=erwindouna_python-tado
